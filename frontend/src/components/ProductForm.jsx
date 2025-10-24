@@ -57,11 +57,21 @@ const secoes = [
     <option key={s} value={s}>{s}</option>
   ))}
 </select>
-
-      <label className="flex items-center gap-2 mb-2">
-        <input type="checkbox" checked={precoCorreto} onChange={e=>setPrecoCorreto(e.target.checked)} />
-        Preço correto
-      </label>
+    
+      <label className="flex items-center gap-3 mt-2">
+  <div className="relative inline-block w-12 h-6">
+    <input
+      type="checkbox"
+      checked={precoCorreto}
+      onChange={e => setPrecoCorreto(e.target.checked)}
+      className="peer sr-only"
+    />
+    <div className="w-full h-full bg-gray-300 rounded-full peer-checked:bg-pink-600 transition-all"></div>
+    <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-all peer-checked:translate-x-6"></div>
+  </div>
+  <span className="font-medium text-gray-700 select-none">Preço correto</span>
+</label>
+<br></br>
       <button className="bg-green-600 text-white px-4 py-2 rounded">Adicionar</button>
     </form>
   )

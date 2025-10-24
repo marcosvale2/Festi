@@ -136,6 +136,28 @@ export default function AdminDashboard() {
             ))}
           </tbody>
         </table>
+        <button
+  onClick={async () => {
+    if (!window.confirm("🗑️ Deseja realmente apagar todos os registros de relatórios?")) return;
+    const token = localStorage.getItem("token");
+    try {
+      const res = await fetch("http://192.168.1.101:4000/logs/reset", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("Erro ao resetar logs");
+      setLogs([]); // 👈 limpa na tela também
+      alert("✅ Logs apagados com sucesso!");
+    } catch (err) {
+      console.error(err);
+      alert("❌ Erro ao apagar logs");
+    }
+  }}
+  className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-semibold shadow-md transition-all"
+>
+  🧹 Limpar Logs
+</button>
+
       </div>
     </div>
   )

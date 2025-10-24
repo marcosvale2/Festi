@@ -3,22 +3,20 @@ import ProductForm from '../components/ProductForm'
 import ProductTable from '../components/ProductTable'
 import gerarPDF from "../components/PdfReport";
 
-
-{localStorage.getItem('role') === 'admin' && (
-  <button
-    onClick={() => window.location.href = '/admin'}
-    className="bg-blue-600 text-white px-4 py-2 rounded"
-  >
-    Painel Admin 👑
-  </button>
-)}
-
-
-export default function Dashboard(){
+export default function Dashboard() {
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [produtos, setProdutos] = React.useState([]);
+  const [secaoSelecionada, setSecaoSelecionada] = React.useState("");
 
-  // 🔄 Atualiza tabela e PDF quando adiciona produtos
+  const secoes = [
+    "Bomboniere",
+    "Confeitaria",
+    "Descartáveis",
+    "Papelaria",
+    "Bebidas",
+    "Limpeza"
+  ];
+
   function reload() {
     setRefreshKey(k => k + 1);
   }
@@ -26,7 +24,6 @@ export default function Dashboard(){
   // 📡 Buscar produtos no backend
   React.useEffect(() => {
     const token = localStorage.getItem("token");
-
     fetch("http://192.168.1.101:4000/produtos", {
       headers: {
         "Authorization": `Bearer ${token}`
@@ -37,22 +34,43 @@ export default function Dashboard(){
         return res.json();
       })
       .then(data => {
-        console.log("✅ Produtos carregados:", data);
         setProdutos(data);
       })
       .catch(err => console.error("❌ Erro ao buscar produtos:", err));
   }, [refreshKey]);
 
-  // 🧾 Gerar PDF
+  // 🧾 Gerar PDF filtrado
   const handleGerarPDF = () => {
-    if (produtos.length === 0) {
-      alert("Nenhum produto cadastrado para gerar PDF!");
+    const filtrados = secaoSelecionada
+      ? produtos.filter(p => p.secao === secaoSelecionada)
+      : produtos;
+    if (filtrados.length === 0) {
+      alert("Nenhum produto encontrado para gerar PDF!");
       return;
     }
-    gerarPDF(produtos);
+    gerarPDF(filtrados);
   };
 
-  // 🚪 Logout
+  // 📊 Gerar Excel filtrado
+  const handleGerarExcel = () => {
+    const token = localStorage.getItem("token");
+    const url = secaoSelecionada
+      ? `http://192.168.1.101:4000/produtos/export/excel?secao=${encodeURIComponent(secaoSelecionada)}`
+      : `http://192.168.1.101:4000/produtos/export/excel`;
+
+    fetch(url, {
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+      .then(res => res.blob())
+      .then(blob => {
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `relatorio_festi_${new Date().toLocaleDateString("pt-BR")}.xlsx`;
+        link.click();
+      })
+      .catch(err => console.error("Erro ao gerar Excel:", err));
+  };
+
   const handleLogout = () => {
     localStorage.clear();
     window.location.href = '/login';
@@ -63,15 +81,34 @@ export default function Dashboard(){
       <header className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Sistema de Produtos</h1>
         <div className="flex gap-2 items-center">
+          <select style={{ color: "gray" }}
+            value={secaoSelecionada}
+            onChange={(e) => setSecaoSelecionada(e.target.value)}
+            className="border rounded px-2 py-1"
+          >
+            <option value="">Todas as Seções</option>
+            {secoes.map(sec => (
+              <option key={sec} value={sec}>{sec}</option>
+            ))}
+          </select>
+
           <button
             onClick={handleGerarPDF}
-            className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded font-semibold shadow-md transition-all"
+            className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded font-semibold"
           >
-            📄 Gerar PDF
+            📄 PDF
           </button>
+
+          <button
+            onClick={handleGerarExcel}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-semibold"
+          >
+            📊 Excel
+          </button>
+
           <button
             onClick={handleLogout}
-            className="px-3 py-2 border rounded hover:bg-gray-100 transition-all"
+            className="px-3 py-2 border rounded hover:bg-gray-100"
           >
             Sair
           </button>

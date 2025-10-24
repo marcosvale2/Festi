@@ -6,7 +6,7 @@
   - Autenticação: JWT
   - Proteção: rotas protegidas via requireAuth e requireRole
 */
-
+import XLSX from "xlsx";
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
@@ -184,6 +184,37 @@ app.get("/produtos/export/csv", requireAuth, requireRole("admin", "editor"), asy
   res.send(csv);
 });
 
+
+// Nova rota para exportar Excel com filtro opcional de seção
+app.get("/produtos/export/excel", requireAuth, requireRole("admin", "editor"), async (req, res) => {
+  const secao = req.query.secao;
+  let query = "SELECT * FROM produtos";
+  let params = [];
+
+  if (secao) {
+    query += " WHERE secao = ?";
+    params.push(secao);
+  }
+
+  const produtos = await db.all(query, params);
+
+  const dadosPlanilha = produtos.map(p => ({
+    ID: p.id,
+    Nome: p.nome,
+    Seção: p.secao,
+    "Preço OK": p.precoCorreto ? "Sim" : "Não",
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(dadosPlanilha);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Relatório");
+
+  const buffer = XLSX.write(wb, { bookType: "xlsx", type: "buffer" });
+  res.setHeader("Content-Disposition", "attachment; filename=relatorio_festi.xlsx");
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.send(buffer);
+});
+
 /* --------------------------- LOGS DE RELATÓRIOS --------------------------- */
 
 // Registrar log
@@ -195,6 +226,19 @@ app.post("/logs", requireAuth, async (req, res) => {
   ]);
   res.json({ success: true });
 });
+
+
+// 🧹 Rota para limpar todos os logs do banco
+app.post("/logs/reset", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    await db.exec("DELETE FROM logs");
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro ao limpar logs" });
+  }
+});
+
 
 // Listar logs (apenas admin)
 app.get("/logs", requireAuth, requireRole("admin"), async (req, res) => {
