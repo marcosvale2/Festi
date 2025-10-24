@@ -22,7 +22,11 @@ export default function Login() {
       localStorage.setItem('token', data.token)
       localStorage.setItem('username', data.username)
       localStorage.setItem('role', data.role)
-      navigate('/dashboard')
+      if (data.role === 'admin') {
+  navigate('/admin')
+} else {
+  navigate('/dashboard')
+}
     } catch (err) {
       setError(err.message)
     }

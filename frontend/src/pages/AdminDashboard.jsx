@@ -2,37 +2,33 @@ import React, { useEffect, useState } from 'react'
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState([])
+  const [logs, setLogs] = useState([])
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState('editor')
-  const [logs, setLogs] = useState([])
   const token = localStorage.getItem('token')
-  const roleUser = localStorage.getItem('role')
+  const userRole = localStorage.getItem('role')
 
-  // Protege rota
+  // Redireciona caso não seja admin
   useEffect(() => {
-    if (roleUser !== 'admin') {
+    if (userRole !== 'admin') {
       window.location.href = '/dashboard'
     }
-  }, [roleUser])
+  }, [userRole])
 
   // Buscar usuários e logs
   useEffect(() => {
-    fetch('http://192.168.1.101:4000/users', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    fetch('http://192.168.1.101:4000/users', { headers: { Authorization: `Bearer ${token}` } })
       .then(res => res.json())
       .then(setUsers)
 
-    fetch('http://192.168.1.101:4000/logs', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    fetch('http://192.168.1.101:4000/logs', { headers: { Authorization: `Bearer ${token}` } })
       .then(res => res.json())
       .then(setLogs)
-  }, [])
+  }, [token])
 
-  // Cadastrar usuário
-  const handleAddUser = async (e) => {
+  // Criar usuário
+  const handleCreateUser = async (e) => {
     e.preventDefault()
     const res = await fetch('http://192.168.1.101:4000/users', {
       method: 'POST',
@@ -40,32 +36,33 @@ export default function AdminDashboard() {
       body: JSON.stringify({ username, password, role })
     })
     if (res.ok) {
-      setUsername('')
-      setPassword('')
       const newUser = await res.json()
       setUsers([...users, newUser])
+      setUsername('')
+      setPassword('')
+      setRole('editor')
     }
   }
 
   // Deletar usuário
-  const handleDeleteUser = async (username) => {
-    if (!confirm(`Deletar usuário ${username}?`)) return
-    const res = await fetch(`http://192.168.1.101:4000/users/${username}`, {
+  const handleDeleteUser = async (uname) => {
+    if (!confirm(`Deseja deletar o usuário ${uname}?`)) return
+    const res = await fetch(`http://192.168.1.101:4000/users/${uname}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` }
     })
     if (res.ok) {
-      setUsers(users.filter(u => u.username !== username))
+      setUsers(users.filter(u => u.username !== uname))
     }
   }
 
   return (
     <div className="container mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Painel do Administrador</h1>
+      <h1 className="text-2xl font-bold mb-4">Painel do Administrador 👑</h1>
 
-      {/* 👤 Cadastrar novo usuário */}
-      <form onSubmit={handleAddUser} className="bg-white p-4 rounded shadow mb-6">
-        <h2 className="font-semibold mb-2">Cadastrar Usuário</h2>
+      {/* 👤 Cadastrar usuário */}
+      <form onSubmit={handleCreateUser} className="bg-white p-4 rounded shadow mb-6">
+        <h2 className="font-semibold mb-2">Cadastrar Novo Usuário</h2>
         <input
           value={username}
           onChange={e => setUsername(e.target.value)}
@@ -74,25 +71,21 @@ export default function AdminDashboard() {
           required
         />
         <input
-          type="password"
           value={password}
           onChange={e => setPassword(e.target.value)}
           placeholder="Senha"
+          type="password"
           className="border p-2 mb-2 w-full"
           required
         />
-        <select
-          value={role}
-          onChange={e => setRole(e.target.value)}
-          className="border p-2 mb-2 w-full"
-        >
+        <select value={role} onChange={e => setRole(e.target.value)} className="border p-2 mb-2 w-full">
           <option value="editor">Editor</option>
           <option value="admin">Admin</option>
         </select>
         <button className="bg-green-600 text-white px-4 py-2 rounded">Adicionar</button>
       </form>
 
-      {/* 🧾 Lista de usuários */}
+      {/* 📃 Lista de usuários */}
       <div className="bg-white p-4 rounded shadow mb-6">
         <h2 className="font-semibold mb-2">Usuários Cadastrados</h2>
         <table className="w-full text-left">
@@ -131,7 +124,7 @@ export default function AdminDashboard() {
           <thead>
             <tr>
               <th className="p-2">Usuário</th>
-              <th className="p-2">Data</th>
+              <th className="p-2">Data/Hora</th>
             </tr>
           </thead>
           <tbody>

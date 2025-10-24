@@ -3,6 +3,17 @@ import ProductForm from '../components/ProductForm'
 import ProductTable from '../components/ProductTable'
 import gerarPDF from "../components/PdfReport";
 
+
+{localStorage.getItem('role') === 'admin' && (
+  <button
+    onClick={() => window.location.href = '/admin'}
+    className="bg-blue-600 text-white px-4 py-2 rounded"
+  >
+    Painel Admin 👑
+  </button>
+)}
+
+
 export default function Dashboard(){
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [produtos, setProdutos] = React.useState([]);

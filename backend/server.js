@@ -1,8 +1,9 @@
 /*
-  server.js - API REST com Express para CRUD de produtos e autenticação simples
-  - Produtos: tabela 'produtos' (id TEXT primary key, nome, secao, precoCorreto INTEGER)
-  - Usuários: tabela 'users' (username primary key, passwordHash, role)
-  - Autenticação: /auth/login -> retorna JWT
+  server.js - API REST com Express para CRUD de produtos, autenticação e painel admin
+  - Produtos: tabela 'produtos'
+  - Usuários: tabela 'users'
+  - Logs: tabela 'logs' (ações de geração de relatório)
+  - Autenticação: JWT
   - Proteção: rotas protegidas via requireAuth e requireRole
 */
 
@@ -26,7 +27,7 @@ let db;
 (async () => {
   db = await openDb();
 
-  // criar tabelas se não existirem
+  // 📊 Tabelas
   await db.exec(`
     CREATE TABLE IF NOT EXISTS produtos (
       id TEXT PRIMARY KEY,
@@ -44,15 +45,23 @@ let db;
     );
   `);
 
-  // criar usuários padrões (só se não existirem)
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL,
+      data TEXT NOT NULL
+    );
+  `);
+
+  // 👤 Criar usuários padrões se não existirem
   const admin = await db.get("SELECT * FROM users WHERE username = ?", ["admin"]);
   if (!admin) {
-    const passHash = await bcrypt.hash("adminpass", 10); // troque em produção
+    const passHash = await bcrypt.hash("adminpass", 10);
     await db.run(
       "INSERT INTO users (username, passwordHash, role) VALUES (?, ?, ?)",
       ["admin", passHash, "admin"]
     );
-    console.log("Usuário 'admin' criado com senha 'adminpass' (troque em .env)");
+    console.log("✅ Usuário 'admin' criado com senha 'adminpass'");
   }
 
   const editor = await db.get("SELECT * FROM users WHERE username = ?", ["editor"]);
@@ -62,11 +71,11 @@ let db;
       "INSERT INTO users (username, passwordHash, role) VALUES (?, ?, ?)",
       ["editor", passHash, "editor"]
     );
-    console.log("Usuário 'editor' criado com senha 'editorpass' (troque em .env)");
+    console.log("✅ Usuário 'editor' criado com senha 'editorpass'");
   }
 })();
 
-// Rota de login - retorna token JWT
+/* --------------------------- AUTENTICAÇÃO --------------------------- */
 app.post("/auth/login", async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
@@ -82,20 +91,43 @@ app.post("/auth/login", async (req, res) => {
   res.json({ token, username: user.username, role: user.role });
 });
 
-// Rota para criar usuário (apenas admin)
+/* --------------------------- GESTÃO DE USUÁRIOS (ADMIN) --------------------------- */
+
+// Criar usuário
 app.post("/users", requireAuth, requireRole("admin"), async (req, res) => {
   const { username, password, role } = req.body;
   if (!username || !password || !role) return res.status(400).json({ error: "Campos faltando" });
+
   const exists = await db.get("SELECT 1 FROM users WHERE username = ?", [username]);
   if (exists) return res.status(400).json({ error: "Usuário já existe" });
+
   const passHash = await bcrypt.hash(password, 10);
-  await db.run("INSERT INTO users (username, passwordHash, role) VALUES (?, ?, ?)",
-    [username, passHash, role]);
+  await db.run(
+    "INSERT INTO users (username, passwordHash, role) VALUES (?, ?, ?)",
+    [username, passHash, role]
+  );
+  res.json({ username, role });
+});
+
+// Listar usuários
+app.get("/users", requireAuth, requireRole("admin"), async (req, res) => {
+  const users = await db.all("SELECT username, role FROM users");
+  res.json(users);
+});
+
+// Deletar usuário
+app.delete("/users/:username", requireAuth, requireRole("admin"), async (req, res) => {
+  const { username } = req.params;
+  if (username === "admin") {
+    return res.status(403).json({ error: "Não é possível deletar o admin principal." });
+  }
+  await db.run("DELETE FROM users WHERE username = ?", [username]);
   res.json({ success: true });
 });
 
-// CRUD Produtos
-// Cadastrar produto - permitido para role 'editor' e 'admin'
+/* --------------------------- PRODUTOS --------------------------- */
+
+// Cadastrar produto - editor/admin
 app.post("/produtos", requireAuth, requireRole("editor", "admin"), async (req, res) => {
   const { id, nome, secao, precoCorreto } = req.body;
   if (!id || !nome || !secao) return res.status(400).json({ error: "Campos obrigatórios" });
@@ -110,13 +142,13 @@ app.post("/produtos", requireAuth, requireRole("editor", "admin"), async (req, r
   }
 });
 
-// Listar produtos - qualquer usuário autenticado pode listar
+// Listar produtos
 app.get("/produtos", requireAuth, async (req, res) => {
   const produtos = await db.all("SELECT * FROM produtos ORDER BY secao, nome");
   res.json(produtos.map(p => ({ ...p, precoCorreto: !!p.precoCorreto })));
 });
 
-// Editar produto - editor/admin
+// Editar produto
 app.put("/produtos/:id", requireAuth, requireRole("editor", "admin"), async (req, res) => {
   const { id } = req.params;
   const { nome, secao, precoCorreto } = req.body;
@@ -127,20 +159,20 @@ app.put("/produtos/:id", requireAuth, requireRole("editor", "admin"), async (req
   res.json({ success: true });
 });
 
-// Deletar produto - editor/admin
+// Deletar produto
 app.delete("/produtos/:id", requireAuth, requireRole("editor", "admin"), async (req, res) => {
   const { id } = req.params;
   await db.run("DELETE FROM produtos WHERE id=?", [id]);
   res.json({ success: true });
 });
 
-// Resetar DB (APENAS admin)
+// Resetar DB produtos (admin)
 app.post("/produtos/reset", requireAuth, requireRole("admin"), async (req, res) => {
   await db.exec("DELETE FROM produtos");
   res.json({ success: true });
 });
 
-// Export CSV (admin/editor)
+// Exportar CSV
 app.get("/produtos/export/csv", requireAuth, requireRole("admin", "editor"), async (req, res) => {
   const produtos = await db.all("SELECT * FROM produtos");
   const csv = [
@@ -152,4 +184,23 @@ app.get("/produtos/export/csv", requireAuth, requireRole("admin", "editor"), asy
   res.send(csv);
 });
 
-app.listen(PORT, () => console.log(`Servidor rodando em http://localhost:${PORT}`));
+/* --------------------------- LOGS DE RELATÓRIOS --------------------------- */
+
+// Registrar log
+app.post("/logs", requireAuth, async (req, res) => {
+  const username = req.user.username;
+  await db.run("INSERT INTO logs (username, data) VALUES (?, ?)", [
+    username,
+    new Date().toISOString(),
+  ]);
+  res.json({ success: true });
+});
+
+// Listar logs (apenas admin)
+app.get("/logs", requireAuth, requireRole("admin"), async (req, res) => {
+  const logs = await db.all("SELECT username, data FROM logs ORDER BY data DESC");
+  res.json(logs);
+});
+
+/* --------------------------- SERVER --------------------------- */
+app.listen(PORT, () => console.log(`🚀 Servidor rodando em http://localhost:${PORT}`));
