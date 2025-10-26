@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import gerarPDFPedidos from '../components/PdfReportPedidos'
+import { apiFetch } from '../services/api'
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState([])
@@ -22,45 +23,37 @@ export default function AdminDashboard() {
 
   // 📡 Carregar usuários, logs e pedidos
   useEffect(() => {
-    const headers = { Authorization: `Bearer ${token}` }
-
-    fetch('http://192.168.1.101:4000/users', { headers })
-      .then(res => {
-        if (!res.ok) throw new Error("❌ Falha ao carregar usuários")
-        return res.json()
-      })
-      .then(setUsers)
-      .catch(err => alert(err.message))
-
-    fetch('http://192.168.1.101:4000/logs', { headers })
-      .then(res => res.json())
-      .then(setLogs)
-
-    fetch('http://192.168.1.101:4000/pedidos', { headers })
-      .then(res => res.json())
-      .then(setPedidos)
-  }, [token])
+    async function loadData() {
+      try {
+        const [usersData, logsData, pedidosData] = await Promise.all([
+          apiFetch('/users'),
+          apiFetch('/logs'),
+          apiFetch('/pedidos'),
+        ])
+        setUsers(usersData)
+        setLogs(logsData)
+        setPedidos(pedidosData)
+      } catch (err) {
+        alert(`❌ ${err.message}`)
+      }
+    }
+    loadData()
+  }, [])
 
   // ➕ Criar usuário
   const handleCreateUser = async (e) => {
     e.preventDefault()
-
     try {
-      const res = await fetch('http://192.168.1.101:4000/users', {
+      const data = await apiFetch('/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ username, password, role })
+        body: JSON.stringify({ username, password, role }),
       })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Erro ao criar usuário")
 
       setUsers([...users, data])
       setUsername('')
       setPassword('')
       setRole('editor')
       alert(`✅ Usuário '${data.username}' criado com sucesso!`)
-
     } catch (err) {
       alert(`❌ ${err.message}`)
     }
@@ -70,11 +63,9 @@ export default function AdminDashboard() {
   const handleDeleteUser = async (uname) => {
     if (!confirm(`Deseja deletar o usuário ${uname}?`)) return
     try {
-      const res = await fetch(`http://192.168.1.101:4000/users/${uname}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+      await apiFetch(`/users/${uname}`, {
+        method: 'DELETE'
       })
-      if (!res.ok) throw new Error("Erro ao deletar usuário")
       setUsers(users.filter(u => u.username !== uname))
       alert(`✅ Usuário '${uname}' deletado`)
     } catch (err) {
@@ -89,6 +80,18 @@ export default function AdminDashboard() {
       return
     }
     gerarPDFPedidos(pedidos)
+  }
+
+  // 🧹 Limpar logs
+  const handleLimparLogs = async () => {
+    if (!window.confirm("🗑️ Deseja realmente apagar todos os registros de relatórios?")) return
+    try {
+      await apiFetch('/logs/reset', { method: 'POST' })
+      setLogs([])
+      alert("✅ Logs apagados com sucesso!")
+    } catch (err) {
+      alert(`❌ ${err.message}`)
+    }
   }
 
   return (
@@ -190,20 +193,7 @@ export default function AdminDashboard() {
         </table>
 
         <button
-          onClick={async () => {
-            if (!window.confirm("🗑️ Deseja realmente apagar todos os registros de relatórios?")) return
-            try {
-              const res = await fetch("http://192.168.1.101:4000/logs/reset", {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${token}` }
-              })
-              if (!res.ok) throw new Error("Erro ao resetar logs")
-              setLogs([])
-              alert("✅ Logs apagados com sucesso!")
-            } catch (err) {
-              alert(`❌ ${err.message}`)
-            }
-          }}
+          onClick={handleLimparLogs}
           className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-semibold shadow-md transition-all"
         >
           🧹 Limpar Logs

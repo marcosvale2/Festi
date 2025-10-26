@@ -3,7 +3,13 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || "mude_isto_em_producao";
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// 🔒 Exigir JWT_SECRET definido (sem fallback inseguro)
+if (!JWT_SECRET) {
+  console.error("❌ Faltando JWT_SECRET no .env. Defina JWT_SECRET e reinicie o servidor.");
+  process.exit(1);
+}
 
 // middleware que verifica o token e coloca req.user
 export function requireAuth(req, res, next) {

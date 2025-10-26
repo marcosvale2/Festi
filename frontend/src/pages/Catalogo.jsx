@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useCart } from "../components/CartContext";
 import { useNavigate } from "react-router-dom";
+import { apiFetch } from "../services/api";
 
 export default function Catalogo() {
   const [produtos, setProdutos] = useState([]);
@@ -15,46 +16,56 @@ export default function Catalogo() {
     const token = localStorage.getItem("token");
     const role = localStorage.getItem("role");
 
-    // se não for cliente ou não tiver token → redireciona
     if (!token || role !== "cliente") {
       navigate("/login-cliente", { replace: true });
       return;
     }
 
-    fetch("http://192.168.1.101:4000/produtos", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((data) => {
+    async function carregarProdutos() {
+      try {
+        const data = await apiFetch("/produtos");
         setProdutos(data);
         // inicializa as quantidades
         const inicial = {};
-        data.forEach(p => { inicial[p.id] = 1; });
+        data.forEach((p) => (inicial[p.id] = 1));
         setQuantidades(inicial);
-      })
-      .finally(() => setLoading(false));
+      } catch (err) {
+        console.error("❌ Erro ao carregar produtos:", err);
+        alert("Erro ao carregar catálogo: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    carregarProdutos();
   }, [navigate]);
 
   function handleAdd(p) {
     const qtd = quantidades[p.id] || 1;
-    addItem({ 
-      produto_id: p.id, 
-      nome: p.nome, 
-      quantidade: qtd, 
-      preco_unitario: p.preco
+    addItem({
+      produto_id: p.id,
+      nome: p.nome,
+      quantidade: qtd,
+      preco_unitario: p.preco,
     });
     alert(`${qtd} unidade(s) de "${p.nome}" adicionada(s) ao carrinho!`);
   }
 
   function aumentarQtd(id) {
-    setQuantidades(prev => ({ ...prev, [id]: (prev[id] || 1) + 1 }));
+    setQuantidades((prev) => ({ ...prev, [id]: (prev[id] || 1) + 1 }));
   }
 
   function diminuirQtd(id) {
-    setQuantidades(prev => ({ ...prev, [id]: Math.max(1, (prev[id] || 1) - 1) }));
+    setQuantidades((prev) => ({
+      ...prev,
+      [id]: Math.max(1, (prev[id] || 1) - 1),
+    }));
   }
 
-  const filtrados = secaoFiltro ? produtos.filter((p) => p.secao === secaoFiltro) : produtos;
+  const filtrados = secaoFiltro
+    ? produtos.filter((p) => p.secao === secaoFiltro)
+    : produtos;
+
   const secoes = Array.from(new Set(produtos.map((p) => p.secao)));
 
   if (loading) return <div className="p-6">Carregando...</div>;
@@ -90,7 +101,9 @@ export default function Catalogo() {
         >
           <option value="">Todas as seções</option>
           {secoes.map((s) => (
-            <option key={s} value={s}>{s}</option>
+            <option key={s} value={s}>
+              {s}
+            </option>
           ))}
         </select>
       </div>

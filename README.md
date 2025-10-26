@@ -1,27 +1,43 @@
 # 🛍️ Sistema de Cadastro de Produtos e Vendas — FESTI
 
-Sistema completo em **React + Tailwind (frontend)** e **Express + SQLite (backend)**.  
-Permite **cadastrar produtos**, **fazer pedidos como cliente**, **gerar relatórios em PDF**, além de **gerenciar usuários com papéis** e controlar pagamentos.
+Sistema completo em **React + Tailwind (frontend)** e **Express + SQLite (backend)**, agora com **toast global**, **interceptador de sessão JWT** e **loader elegante**.  
+Permite **cadastrar produtos**, **realizar pedidos**, **gerar relatórios** e **gerenciar usuários com papéis de acesso**.
 
-## ✨ Funcionalidades Principais
+---
 
-- 🧾 **Autenticação JWT** com papéis:
-  - `admin` ➜ gerencia usuários, produtos, relatórios e pedidos.
-  - `editor` ➜ gerencia produtos e relatórios.
-  - `cliente` ➜ realiza pedidos no catálogo.
-- 📦 Cadastro de produtos com nome, ID, seção, preço fixo e opção de marcar preço correto.
-- 📊 **Relatórios de Vendas em PDF** estilizados com identidade FESTI.
-- 🧾 Relatório de Produtos e Vendas (com status de pagamento, endereço, forma de pagamento e data).
-- 🛒 **Carrinho de compras** com preço do produto vindo direto do banco.
-- 🧍‍♂️ Cadastro de usuários via painel admin.
-- 🏦 Pedidos com:
-  - Nome do cliente
-  - Endereço (Rua + número)
-  - Forma de pagamento (Pix, cartão ou dinheiro)
-  - Status de pagamento
-- 📅 Data e hora completas dos pedidos registradas.
-- 🧰 Exportação para Excel/CSV e reset da base de dados.
-- 🔑 Painel do administrador com controle de usuários e logs de relatórios.
+## ✨ Novidades desta versão
+
+- ✅ **Interceptador global de autenticação (401)**  
+  - Logout automático quando o token expira.  
+  - Toast informando ao usuário que a sessão foi encerrada.
+  
+- 🧭 **Loader global elegante**  
+  - Exibido automaticamente em qualquer requisição API.  
+  - Interface fluida e moderna.
+
+- 🔔 **Mensagens toast em toda a aplicação**  
+  - Substituição dos `alert()` nativos por `react-hot-toast`.
+
+- 🧾 Atualização de páginas:
+  - `Carrinho.jsx` e `PedidosCliente.jsx` com UX aprimorada.
+  - Melhor tratamento de erros e feedback visual ao usuário.
+
+---
+
+## 🚀 Funcionalidades Principais
+
+- 🔐 Autenticação com JWT e papéis:
+  - `admin` ➜ gerencia tudo
+  - `editor` ➜ gerencia produtos e relatórios
+  - `cliente` ➜ realiza pedidos
+- 📦 Cadastro de produtos por seção
+- 🧾 Relatórios de vendas em PDF e Excel
+- 🛒 Carrinho de compras
+- 🧍‍♂️ Gerenciamento de usuários
+- 💳 Controle de status de pagamento
+- 📅 Registro completo com data e hora
+- 📊 Exportação de relatórios
+- 🪄 Toasts e Loader global
 
 ---
 
@@ -32,19 +48,24 @@ Permite **cadastrar produtos**, **fazer pedidos como cliente**, **gerar relatór
  ├── src/
  │   ├── components/
  │   │   ├── CartContext.jsx
+ │   │   ├── GlobalLoader.jsx        🆕
  │   │   ├── ProductForm.jsx
  │   │   ├── ProductTable.jsx
  │   │   ├── PdfReport.js
- │   │   ├── PdfReportPedidos.js   🆕
+ │   │   └── PdfReportPedidos.js
+ │   ├── context/
+ │   │   └── LoaderContext.jsx       🆕
  │   ├── pages/
  │   │   ├── Login.jsx
  │   │   ├── LoginCliente.jsx
  │   │   ├── Dashboard.jsx
  │   │   ├── Catalogo.jsx
- │   │   ├── Carrinho.jsx
+ │   │   ├── Carrinho.jsx            🆕 UX
  │   │   ├── AdminDashboard.jsx
- │   │   ├── PedidosCliente.jsx
- │   ├── App.jsx
+ │   │   └── PedidosCliente.jsx      🆕 UX
+ │   ├── services/
+ │   │   └── api.js                  🆕 interceptador + loader
+ │   ├── App.jsx                     🆕 inicialização loader
  │   ├── main.jsx
  │   └── index.css
  └── package.json
@@ -53,12 +74,13 @@ Permite **cadastrar produtos**, **fazer pedidos como cliente**, **gerar relatór
  ├── server.js
  ├── auth.js
  ├── db.js
+ ├── .env
  └── database.sqlite
 ```
 
 ---
 
-## 🚀 Como rodar o projeto
+## ⚡ Como rodar
 
 ### Backend
 ```bash
@@ -76,63 +98,44 @@ npm install
 npm run dev
 ```
 
-Acesse: 👉 `http://localhost:5173`
+Acesse 👉 [http://localhost:5173](http://localhost:5173)
 
 ---
 
 ## 👑 Usuários Padrão
 
 | Usuário | Senha       | Papel   |
-|---------|------------|---------|
-| admin   | adminpass  | admin   |
-| editor  | editorpass | editor  |
-
-Você pode criar novos usuários (inclusive clientes) pelo painel do administrador.
-
----
-
-## 🧾 Relatórios de Vendas FESTI
-
-- Cabeçalho com logo FESTI e cor institucional
-- Colunas: Pedido, Cliente, Endereço, Pagamento, Total, Status, Data
-- Badge de status “PENDENTE” ou “PAGO”
-- Paginação e data no rodapé
-- Compatível com impressão A4
-
-📸 *Exemplo de relatório de vendas gerado em PDF:*
-
-```
-Pedido # | Cliente | Endereço | Pagamento | Total (R$) | Status     | Data
-2        | João    | Rua X    | Pix       | 96,00      | PENDENTE   | 25/10/2025 21:18:29
-1        | Maria   | Rua Y    | Cartão    | 72,00      | PENDENTE   | 25/10/2025 20:59:47
-```
+|---------|-------------|---------|
+| admin   | admin123    | admin   |
+| editor  | editor123   | editor  |
+| cliente | cliente123  | cliente |
 
 ---
 
-## 🧰 Tecnologias Utilizadas
+## 🧾 Relatórios FESTI
 
-- ⚡ **Frontend:** React, Tailwind CSS, jsPDF
-- 🛡️ **Backend:** Express.js, SQLite, JWT, Bcrypt
-- 🧾 **Relatórios:** jsPDF + estilização FESTI
-- 🗂️ **Banco:** SQLite local
+- Cabeçalho com logo e identidade visual FESTI  
+- Colunas: Pedido, Cliente, Endereço, Pagamento, Total, Status, Data  
+- Badge de status “PAGO” ou “PENDENTE”  
+- Paginação automática no PDF  
+- Exportação para Excel disponível
 
 ---
 
-## 🧭 Rotas Principais
+## 🧰 Tecnologias
 
-### Backend
-- `POST /auth/login` → Login de usuário
-- `POST /produtos` → Criar produto
-- `GET /produtos` → Listar produtos
-- `POST /pedidos` → Criar pedido com endereço e pagamento
-- `GET /pedidos` → Listar pedidos
-- `PUT /pedidos/:id/pagamento` → Atualizar status de pagamento
-- `POST /users` → Criar usuário
-- `GET /users` → Listar usuários
-- `DELETE /users/:username` → Deletar usuário
+- ⚡ **Frontend:** React, Tailwind CSS, jsPDF, react-hot-toast  
+- 🛡️ **Backend:** Express.js, SQLite, JWT, Bcrypt  
+- 🧭 **Infra:** Loader global + Interceptador de sessão  
+- 🧾 **Relatórios:** jsPDF e Excel
 
 ---
 
 ## 📝 Licença
-Este projeto foi desenvolvido para uso interno da **FESTI Distribuidora**.  
+Projeto desenvolvido para uso interno da **FESTI Distribuidora**.  
 Distribuição ou uso comercial requer autorização prévia.
+
+---
+
+## 🧠 Autor
+Desenvolvido por **Marcos Vinícius Soares do Vale** 🚀

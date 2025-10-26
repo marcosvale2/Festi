@@ -1,12 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useCart } from "../components/CartContext";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 export default function Carrinho() {
   const { items, updateQty, removeItem, clear, total } = useCart();
   const navigate = useNavigate();
 
-  // 🆕 Campos de dados do cliente
   const [nomeCliente, setNomeCliente] = useState("");
   const [endereco, setEndereco] = useState("");
   const [pagamento, setPagamento] = useState("");
@@ -15,17 +15,23 @@ export default function Carrinho() {
     const role = localStorage.getItem("role");
     if (role !== "cliente") navigate("/login-cliente");
   }
-  React.useEffect(validarRole, [navigate]);
+
+  useEffect(validarRole, [navigate]);
 
   async function finalizarPedido() {
-    if (items.length === 0) return alert("Carrinho vazio.");
+    if (items.length === 0) {
+      toast.error("🛒 Carrinho vazio!");
+      return;
+    }
 
     if (!nomeCliente.trim() || !endereco.trim() || !pagamento.trim()) {
-      alert("Todos os campos de informações pessoais são obrigatórios.");
+      toast.error("⚠️ Preencha todas as informações obrigatórias.");
       return;
     }
 
     const token = localStorage.getItem("token");
+    const loadingToast = toast.loading("Enviando pedido...");
+
     try {
       const res = await fetch("http://192.168.1.101:4000/pedidos", {
         method: "POST",
@@ -44,11 +50,13 @@ export default function Carrinho() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao criar pedido");
 
-      alert(`✅ Pedido #${data.pedidoId} criado com sucesso!`);
+      toast.success(`✅ Pedido #${data.pedidoId} criado com sucesso!`);
       navigate("/pedidos");
       setTimeout(() => clear(), 100);
     } catch (err) {
-      alert("❌ " + err.message);
+      toast.error(`❌ ${err.message}`);
+    } finally {
+      toast.dismiss(loadingToast);
     }
   }
 
@@ -66,7 +74,6 @@ export default function Carrinho() {
         </div>
       </header>
 
-      {/* 🆕 Formulário de dados do cliente */}
       {items.length > 0 && (
         <div className="bg-white p-4 rounded shadow mb-6">
           <h2 className="font-semibold mb-3 text-lg">Informações do Cliente</h2>

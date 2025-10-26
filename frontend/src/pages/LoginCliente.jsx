@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiFetch } from "../services/api";
+import toast from 'react-hot-toast'
 
 export default function LoginCliente() {
   const [username, setUsername] = useState("");
@@ -10,22 +12,21 @@ export default function LoginCliente() {
   async function handleLogin(e) {
     e.preventDefault();
     setError(null);
+
     try {
-      const res = await fetch("http://192.168.1.101:4000/auth/login", {
+      const data = await apiFetch("/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erro");
+
       localStorage.setItem("token", data.token);
       localStorage.setItem("username", data.username);
       localStorage.setItem("role", data.role);
 
       if (data.role !== "cliente") {
-        // impede staff de usar login de cliente
-        return setError("Esta área é exclusiva para clientes.");
+        return stoast.error("Área exclusiva para clientes!");
       }
+
       navigate("/catalogo");
     } catch (err) {
       setError(err.message);
@@ -53,7 +54,10 @@ export default function LoginCliente() {
             placeholder="Senha"
             required
           />
-          <button className="bg-pink-600 hover:bg-pink-700 text-white py-2 rounded font-semibold">
+          <button
+            type="submit"
+            className="bg-pink-600 hover:bg-pink-700 text-white py-2 rounded font-semibold"
+          >
             Entrar
           </button>
         </form>

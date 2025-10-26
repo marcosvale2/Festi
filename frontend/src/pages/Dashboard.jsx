@@ -2,7 +2,8 @@ import React, { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ProductForm from '../components/ProductForm'
 import ProductTable from '../components/ProductTable'
-import gerarPDF from "../components/PdfReport";
+import gerarPDF from "../components/PdfReport"
+import { apiFetch, apiFetchBlob } from "../services/api";
 
 export default function Dashboard() {
   const [refreshKey, setRefreshKey] = React.useState(0);
@@ -28,7 +29,6 @@ export default function Dashboard() {
     const token = localStorage.getItem("token");
     const role = localStorage.getItem("role");
 
-    // Se não estiver logado ou não for admin/editor → volta pro login
     if (!token || (role !== "admin" && role !== "editor")) {
       navigate("/login", { replace: true });
       return;
@@ -37,20 +37,15 @@ export default function Dashboard() {
 
   // 📡 Buscar produtos no backend
   React.useEffect(() => {
-    const token = localStorage.getItem("token");
-    fetch("http://192.168.1.101:4000/produtos", {
-      headers: {
-        "Authorization": `Bearer ${token}`
-      }
-    })
-      .then(res => {
-        if (!res.ok) throw new Error("Erro ao carregar produtos");
-        return res.json();
-      })
-      .then(data => {
+    async function loadProducts() {
+      try {
+        const data = await apiFetch("/produtos");
         setProdutos(data);
-      })
-      .catch(err => console.error("❌ Erro ao buscar produtos:", err));
+      } catch (err) {
+        console.error("❌ Erro ao buscar produtos:", err);
+      }
+    }
+    loadProducts();
   }, [refreshKey]);
 
   // 🧾 Gerar PDF filtrado
@@ -66,23 +61,21 @@ export default function Dashboard() {
   };
 
   // 📊 Gerar Excel filtrado
-  const handleGerarExcel = () => {
-    const token = localStorage.getItem("token");
-    const url = secaoSelecionada
-      ? `http://192.168.1.101:4000/produtos/export/excel?secao=${encodeURIComponent(secaoSelecionada)}`
-      : `http://192.168.1.101:4000/produtos/export/excel`;
+  const handleGerarExcel = async () => {
+    try {
+      const endpoint = secaoSelecionada
+        ? `/produtos/export/excel?secao=${encodeURIComponent(secaoSelecionada)}`
+        : `/produtos/export/excel`;
 
-    fetch(url, {
-      headers: { "Authorization": `Bearer ${token}` }
-    })
-      .then(res => res.blob())
-      .then(blob => {
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = `relatorio_festi_${new Date().toLocaleDateString("pt-BR")}.xlsx`;
-        link.click();
-      })
-      .catch(err => console.error("Erro ao gerar Excel:", err));
+      const blob = await apiFetchBlob(endpoint);
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `relatorio_festi_${new Date().toLocaleDateString("pt-BR")}.xlsx`;
+      link.click();
+    } catch (err) {
+      console.error("Erro ao gerar Excel:", err);
+      alert(`❌ ${err.message}`);
+    }
   };
 
   const handleLogout = () => {
@@ -95,7 +88,8 @@ export default function Dashboard() {
       <header className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Sistema de Produtos</h1>
         <div className="flex gap-2 items-center">
-          <select style={{ color: "gray" }}
+          <select
+            style={{ color: "gray" }}
             value={secaoSelecionada}
             onChange={(e) => setSecaoSelecionada(e.target.value)}
             className="border rounded px-2 py-1"
