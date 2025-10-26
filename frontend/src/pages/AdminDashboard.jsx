@@ -1,64 +1,109 @@
 import React, { useEffect, useState } from 'react'
+import gerarPDFPedidos from '../components/PdfReportPedidos'
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState([])
   const [logs, setLogs] = useState([])
+  const [pedidos, setPedidos] = useState([])
+
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState('editor')
+
   const token = localStorage.getItem('token')
   const userRole = localStorage.getItem('role')
 
-  // Redireciona caso não seja admin
+  // 🔐 Verifica se é admin
   useEffect(() => {
     if (userRole !== 'admin') {
       window.location.href = '/dashboard'
     }
   }, [userRole])
 
-  // Buscar usuários e logs
+  // 📡 Carregar usuários, logs e pedidos
   useEffect(() => {
-    fetch('http://192.168.1.101:4000/users', { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => res.json())
-      .then(setUsers)
+    const headers = { Authorization: `Bearer ${token}` }
 
-    fetch('http://192.168.1.101:4000/logs', { headers: { Authorization: `Bearer ${token}` } })
+    fetch('http://192.168.1.101:4000/users', { headers })
+      .then(res => {
+        if (!res.ok) throw new Error("❌ Falha ao carregar usuários")
+        return res.json()
+      })
+      .then(setUsers)
+      .catch(err => alert(err.message))
+
+    fetch('http://192.168.1.101:4000/logs', { headers })
       .then(res => res.json())
       .then(setLogs)
+
+    fetch('http://192.168.1.101:4000/pedidos', { headers })
+      .then(res => res.json())
+      .then(setPedidos)
   }, [token])
 
-  // Criar usuário
+  // ➕ Criar usuário
   const handleCreateUser = async (e) => {
     e.preventDefault()
-    const res = await fetch('http://192.168.1.101:4000/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ username, password, role })
-    })
-    if (res.ok) {
-      const newUser = await res.json()
-      setUsers([...users, newUser])
+
+    try {
+      const res = await fetch('http://192.168.1.101:4000/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ username, password, role })
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Erro ao criar usuário")
+
+      setUsers([...users, data])
       setUsername('')
       setPassword('')
       setRole('editor')
+      alert(`✅ Usuário '${data.username}' criado com sucesso!`)
+
+    } catch (err) {
+      alert(`❌ ${err.message}`)
     }
   }
 
-  // Deletar usuário
+  // 🗑️ Deletar usuário
   const handleDeleteUser = async (uname) => {
     if (!confirm(`Deseja deletar o usuário ${uname}?`)) return
-    const res = await fetch(`http://192.168.1.101:4000/users/${uname}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    if (res.ok) {
+    try {
+      const res = await fetch(`http://192.168.1.101:4000/users/${uname}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error("Erro ao deletar usuário")
       setUsers(users.filter(u => u.username !== uname))
+      alert(`✅ Usuário '${uname}' deletado`)
+    } catch (err) {
+      alert(`❌ ${err.message}`)
     }
+  }
+
+  // 📄 Relatório de pedidos
+  const handleGerarRelatorioPedidos = () => {
+    if (pedidos.length === 0) {
+      alert("Nenhum pedido encontrado.")
+      return
+    }
+    gerarPDFPedidos(pedidos)
   }
 
   return (
     <div className="container mx-auto">
       <h1 className="text-2xl font-bold mb-4">Painel do Administrador 👑</h1>
+
+      {/* 📄 Botão para relatório de pedidos */}
+      <div className="mb-6">
+        <button
+          onClick={handleGerarRelatorioPedidos}
+          className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded font-semibold"
+        >
+          📄 Gerar Relatório de Pedidos
+        </button>
+      </div>
 
       {/* 👤 Cadastrar usuário */}
       <form onSubmit={handleCreateUser} className="bg-white p-4 rounded shadow mb-6">
@@ -78,11 +123,18 @@ export default function AdminDashboard() {
           className="border p-2 mb-2 w-full"
           required
         />
-        <select value={role} onChange={e => setRole(e.target.value)} className="border p-2 mb-2 w-full">
-          <option value="editor">Editor</option>
-          <option value="admin">Admin</option>
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          className="border p-2 mb-2 w-full rounded"
+        >
+          <option value="admin">admin</option>
+          <option value="editor">editor</option>
+          <option value="cliente">cliente</option>
         </select>
-        <button className="bg-green-600 text-white px-4 py-2 rounded">Adicionar</button>
+        <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+          Adicionar
+        </button>
       </form>
 
       {/* 📃 Lista de usuários */}
@@ -105,7 +157,7 @@ export default function AdminDashboard() {
                   {u.username !== 'admin' && (
                     <button
                       onClick={() => handleDeleteUser(u.username)}
-                      className="bg-red-600 text-white px-2 py-1 rounded"
+                      className="bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
                     >
                       Deletar
                     </button>
@@ -117,7 +169,7 @@ export default function AdminDashboard() {
         </table>
       </div>
 
-      {/* 📊 Logs de relatórios */}
+      {/* 📊 Logs */}
       <div className="bg-white p-4 rounded shadow">
         <h2 className="font-semibold mb-2">Relatórios Gerados</h2>
         <table className="w-full text-left">
@@ -136,28 +188,26 @@ export default function AdminDashboard() {
             ))}
           </tbody>
         </table>
-        <button
-  onClick={async () => {
-    if (!window.confirm("🗑️ Deseja realmente apagar todos os registros de relatórios?")) return;
-    const token = localStorage.getItem("token");
-    try {
-      const res = await fetch("http://192.168.1.101:4000/logs/reset", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error("Erro ao resetar logs");
-      setLogs([]); // 👈 limpa na tela também
-      alert("✅ Logs apagados com sucesso!");
-    } catch (err) {
-      console.error(err);
-      alert("❌ Erro ao apagar logs");
-    }
-  }}
-  className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-semibold shadow-md transition-all"
->
-  🧹 Limpar Logs
-</button>
 
+        <button
+          onClick={async () => {
+            if (!window.confirm("🗑️ Deseja realmente apagar todos os registros de relatórios?")) return
+            try {
+              const res = await fetch("http://192.168.1.101:4000/logs/reset", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${token}` }
+              })
+              if (!res.ok) throw new Error("Erro ao resetar logs")
+              setLogs([])
+              alert("✅ Logs apagados com sucesso!")
+            } catch (err) {
+              alert(`❌ ${err.message}`)
+            }
+          }}
+          className="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-semibold shadow-md transition-all"
+        >
+          🧹 Limpar Logs
+        </button>
       </div>
     </div>
   )

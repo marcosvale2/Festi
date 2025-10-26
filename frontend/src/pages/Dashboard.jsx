@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import ProductForm from '../components/ProductForm'
 import ProductTable from '../components/ProductTable'
 import gerarPDF from "../components/PdfReport";
@@ -7,6 +8,7 @@ export default function Dashboard() {
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [produtos, setProdutos] = React.useState([]);
   const [secaoSelecionada, setSecaoSelecionada] = React.useState("");
+  const navigate = useNavigate();
 
   const secoes = [
     "Bomboniere",
@@ -20,6 +22,18 @@ export default function Dashboard() {
   function reload() {
     setRefreshKey(k => k + 1);
   }
+
+  // 🔐 Verificação de login ao montar a página
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const role = localStorage.getItem("role");
+
+    // Se não estiver logado ou não for admin/editor → volta pro login
+    if (!token || (role !== "admin" && role !== "editor")) {
+      navigate("/login", { replace: true });
+      return;
+    }
+  }, [navigate]);
 
   // 📡 Buscar produtos no backend
   React.useEffect(() => {
